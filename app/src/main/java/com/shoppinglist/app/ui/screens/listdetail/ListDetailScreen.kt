@@ -11,6 +11,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
@@ -232,10 +234,18 @@ fun ProductItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
                     checked = product.isCompleted,
-                    onCheckedChange = { onToggle() }
+                    onCheckedChange = { onToggle() },
+                    enabled = true
                 )
-                IconButton(onClick = onAssign, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Person, contentDescription = "שייך", tint = androidx.compose.ui.graphics.Color.Gray)
+                IconButton(onClick = onAssign, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Person, 
+                        contentDescription = "שייך",
+                        tint = if (product.assignedToName != null) 
+                            MaterialTheme.colorScheme.primary 
+                        else 
+                            Color.Gray
+                    )
                 }
             }
         },
@@ -350,12 +360,18 @@ fun AddProductDialog(
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = category,
-                        onValueChange = {},
-                        readOnly = true,
+                        onValueChange = { category = it },
                         label = { Text("קטגוריה") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { categoryExpanded = true }
+                        trailingIcon = { 
+                            IconButton(onClick = { categoryExpanded = !categoryExpanded }) {
+                                Icon(
+                                    if (categoryExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                    contentDescription = "בחר קטגוריה"
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
                     DropdownMenu(
                         expanded = categoryExpanded,

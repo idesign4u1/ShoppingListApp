@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExitToApp
@@ -26,6 +27,7 @@ import com.shoppinglist.app.data.model.ShoppingList
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToList: (String) -> Unit,
+    onNavigateToGlobalChat: () -> Unit = {},
     onSignOut: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -51,11 +53,24 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showCreateDialog = true },
-                containerColor = MaterialTheme.colorScheme.tertiary
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "צור רשימה")
+                // Global Chat FAB
+                FloatingActionButton(
+                    onClick = onNavigateToGlobalChat,
+                    containerColor = MaterialTheme.colorScheme.secondary
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = "צ'אט כללי", tint = Color.White)
+                }
+                // Create List FAB
+                FloatingActionButton(
+                    onClick = { showCreateDialog = true },
+                    containerColor = MaterialTheme.colorScheme.tertiary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "צור רשימה", tint = Color.White)
+                }
             }
         }
     ) { paddingValues ->

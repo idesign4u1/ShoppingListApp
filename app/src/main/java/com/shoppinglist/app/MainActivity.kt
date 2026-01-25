@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import com.shoppinglist.app.ui.screens.auth.AuthScreen
 import com.shoppinglist.app.ui.screens.auth.AuthViewModel
 import com.shoppinglist.app.ui.screens.chat.ChatScreen
+import com.shoppinglist.app.ui.screens.globalchat.GlobalChatScreen
 import com.shoppinglist.app.ui.screens.home.HomeScreen
 import com.shoppinglist.app.ui.screens.listdetail.ListDetailScreen
 import com.shoppinglist.app.ui.theme.ShoppingListTheme
@@ -30,6 +31,12 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Request notification permission for Android 13+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
+        
         setContent {
             ShoppingListTheme {
                 Surface(
@@ -70,6 +77,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToList = { listId ->
                                     navController.navigate("list/$listId")
                                 },
+                                onNavigateToGlobalChat = {
+                                    navController.navigate("globalchat")
+                                },
                                 onSignOut = {
                                     navController.navigate("auth") {
                                         popUpTo("home") { inclusive = true }
@@ -94,6 +104,12 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("listId") { type = NavType.StringType })
                         ) {
                             ChatScreen(
+                                onNavigateUp = { navController.navigateUp() }
+                            )
+                        }
+
+                        composable("globalchat") {
+                            GlobalChatScreen(
                                 onNavigateUp = { navController.navigateUp() }
                             )
                         }
