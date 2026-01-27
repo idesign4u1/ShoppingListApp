@@ -288,7 +288,7 @@ fun ShoppingListItem(
                                         onDuplicate()
                                     }
                                 )
-                                HorizontalDivider()
+                                Divider()
                                 DropdownMenuItem(
                                     text = { Text("מחק רשימה", color = MaterialTheme.colorScheme.error) },
                                     leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
@@ -346,7 +346,7 @@ fun ShoppingListItem(
                     if (shoppingList.itemCount > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = { shoppingList.getCompletionPercentage() / 100f },
+                            progress = shoppingList.getCompletionPercentage() / 100f,
                             modifier = Modifier.fillMaxWidth().height(4.dp),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.primaryContainer,

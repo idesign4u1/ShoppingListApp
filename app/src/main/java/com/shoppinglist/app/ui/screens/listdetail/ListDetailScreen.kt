@@ -94,7 +94,7 @@ fun ListDetailScreen(
                                 showShareDialog = true
                             }
                         )
-                        HorizontalDivider()
+                        Divider()
                         DropdownMenuItem(
                             text = { Text("מחק מוצרים שהושלמו") },
                             leadingIcon = { Icon(Icons.Default.DeleteSweep, null) },
@@ -617,37 +617,4 @@ fun ShareListDialog(
     )
 }
 
-@Composable
-fun ShareListDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var email by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("שתף רשימה") },
-        text = {
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("אימייל של המשתמש") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = { if (email.isNotBlank()) onConfirm(email) },
-                enabled = email.isNotBlank()
-            ) {
-                Text("שלח הזמנה")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("ביטול")
-            }
-        }
-    )
-}
