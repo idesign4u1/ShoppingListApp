@@ -43,6 +43,7 @@ fun ListDetailScreen(
     var showAssignDialog by remember { mutableStateOf<Product?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showBudgetDialog by remember { mutableStateOf(false) }
+    var showEditPriceDialog by remember { mutableStateOf<Product?>(null) }
 
     Scaffold(
         topBar = {
@@ -209,7 +210,7 @@ fun ListDetailScreen(
                                     onToggle = { viewModel.toggleProduct(product) },
                                     onDelete = { viewModel.deleteProduct(product.id) },
                                     onAssign = { showAssignDialog = product },
-                                    onEditPrice = { /* Show edit price dialog */ }
+                                    onEditPrice = { showEditPriceDialog = product }
                                 )
                                 Divider(
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
@@ -299,6 +300,42 @@ fun ListDetailScreen(
             onConfirm = { email ->
                 viewModel.inviteUser(email)
                 showShareDialog = false
+            }
+        )
+    }
+
+    if (showEditPriceDialog != null) {
+        val product = showEditPriceDialog!!
+        var priceInput by remember { mutableStateOf(product.price?.toString() ?: "") }
+        
+        AlertDialog(
+            onDismissRequest = { showEditPriceDialog = null },
+            title = { Text("עדכן מחיר") },
+            text = {
+                OutlinedTextField(
+                    value = priceInput,
+                    onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) priceInput = it },
+                    label = { Text("מחיר ל-${product.unit}") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    prefix = { Text("₪") }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val newPrice = priceInput.toDoubleOrNull()
+                    if (newPrice != null) {
+                        viewModel.updateProductPrice(product, newPrice)
+                    }
+                    showEditPriceDialog = null
+                }) {
+                    Text("עדכן")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditPriceDialog = null }) {
+                    Text("ביטול")
+                }
             }
         )
     }
@@ -599,6 +636,12 @@ fun ShareListDialog(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "הערה: המשתמש חייב להיות רשום לאפליקציה עם המייל הזה כדי לראות את ההזמנה.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
         confirmButton = {

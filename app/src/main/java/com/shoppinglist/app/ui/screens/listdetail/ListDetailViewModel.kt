@@ -160,4 +160,11 @@ class ListDetailViewModel @Inject constructor(
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(message = null)
     }
+
+    fun updateProductPrice(product: Product, price: Double) {
+        viewModelScope.launch {
+            val updatedProduct = product.copy(price = price)
+            productRepository.updateProduct(updatedProduct)
+        }
+    }
 }
