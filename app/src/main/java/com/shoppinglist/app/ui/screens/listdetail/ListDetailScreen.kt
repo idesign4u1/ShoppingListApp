@@ -30,6 +30,8 @@ import com.shoppinglist.app.ui.components.EmptyProductsState
 import com.shoppinglist.app.ui.components.LoadingScreen
 import com.shoppinglist.app.ui.components.SkeletonListItem
 
+import androidx.compose.ui.platform.LocalContext
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListDetailScreen(
@@ -38,9 +40,11 @@ fun ListDetailScreen(
     onNavigateToChat: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showAddProductDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
     var showAssignDialog by remember { mutableStateOf<Product?>(null) }
+    var productToComplete by remember { mutableStateOf<Product?>(null) }
     var showMenu by remember { mutableStateOf(false) }
     var showBudgetDialog by remember { mutableStateOf(false) }
     var showEditPriceDialog by remember { mutableStateOf<Product?>(null) }
@@ -316,13 +320,10 @@ fun ListDetailScreen(
                     type = "text/plain"
                 }
                 val shareIntent = android.content.Intent.createChooser(sendIntent, "הזמן חבר באמצעות...")
-                androidx.compose.ui.platform.LocalContext.current.startActivity(shareIntent)
+                context.startActivity(shareIntent)
             }
         )
     }
-
-    // State for the "Price Check" dialog when marking as completed
-    var productToComplete by remember { mutableStateOf<Product?>(null) }
 
     if (productToComplete != null) {
         val product = productToComplete!!
