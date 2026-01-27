@@ -1,5 +1,6 @@
 package com.shoppinglist.app.ui.screens.listdetail
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,27 +10,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.shoppinglist.app.data.model.Product
 import com.shoppinglist.app.data.model.ProductCategories
+import com.shoppinglist.app.data.model.ProductStatus
 import com.shoppinglist.app.data.model.ProductUnits
+import com.shoppinglist.app.ui.components.BudgetTracker
+import com.shoppinglist.app.ui.components.EmptyProductsState
+import com.shoppinglist.app.ui.components.LoadingScreen
+import com.shoppinglist.app.ui.components.SkeletonListItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,43 +42,62 @@ fun ListDetailScreen(
     var showShareDialog by remember { mutableStateOf(false) }
     var showAssignDialog by remember { mutableStateOf<Product?>(null) }
     var showMenu by remember { mutableStateOf(false) }
+    var showBudgetDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.shoppingList?.name ?: "טוען...") },
+                title = { 
+                    Column {
+                        Text(
+                            uiState.shoppingList?.name ?: "טוען...",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        uiState.shoppingList?.let { list ->
+                             Text(
+                                "סה\"כ: ${list.completedCount}/${list.itemCount}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "חזור", tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "חזור")
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToChat) {
+                        Icon(Icons.Default.Chat, contentDescription = "צ'אט")
+                    }
                     IconButton(onClick = { showMenu = !showMenu }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "אפשרויות", tint = Color.White)
+                        Icon(Icons.Default.MoreVert, contentDescription = "אפשרויות")
                     }
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("צ'אט") },
-                            leadingIcon = { Icon(Icons.Default.Chat, contentDescription = null) },
+                            text = { Text("הגדר תקציב") },
+                            leadingIcon = { Icon(Icons.Default.AccountBalance, null) },
                             onClick = {
                                 showMenu = false
-                                onNavigateToChat()
+                                showBudgetDialog = true
                             }
                         )
                         DropdownMenuItem(
                             text = { Text("שתף רשימה") },
-                            leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                            leadingIcon = { Icon(Icons.Default.Share, null) },
                             onClick = {
                                 showMenu = false
                                 showShareDialog = true
                             }
                         )
+                        HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text("מחק מוצרים שהושלמו") },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                            leadingIcon = { Icon(Icons.Default.DeleteSweep, null) },
                             onClick = {
                                 showMenu = false
                                 viewModel.deleteCompletedProducts()
@@ -88,59 +106,117 @@ fun ListDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddProductDialog = true },
-                containerColor = MaterialTheme.colorScheme.tertiary
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "הוסף מוצר")
             }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (uiState.message != null) {
-                Text(
-                    text = uiState.message!!,
-                    color = Color.Green,
-                    modifier = Modifier.padding(8.dp)
-                )
-                LaunchedEffect(Unit) {
-                    kotlinx.coroutines.delay(3000)
-                    viewModel.clearMessage()
+        if (uiState.isLoading && uiState.products.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                repeat(5) {
+                    SkeletonListItem()
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
             }
-
-            if (uiState.products.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("אין מוצרים ברשימה. הוסף את המוצר הראשון!")
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Group by category could be added here, but flat list for now
-                    items(uiState.products) { product ->
-                        ProductItem(
-                            product = product,
-                            onToggle = { viewModel.toggleProduct(product) },
-                            onDelete = { viewModel.deleteProduct(product.id) },
-                            onAssign = {
-                                showAssignDialog = product
-                            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // Budget Tracker Section
+                uiState.shoppingList?.let { list ->
+                    if (list.budget != null) {
+                        BudgetTracker(
+                            budget = list.budget,
+                            totalSpent = list.totalSpent,
+                            estimatedTotal = list.estimatedTotal,
+                            currency = list.currency,
+                            modifier = Modifier.padding(16.dp),
+                            onSetBudget = { showBudgetDialog = true }
                         )
-                        Divider()
+                    }
+                }
+
+                if (uiState.message != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            text = uiState.message!!,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(3000)
+                        viewModel.clearMessage()
+                    }
+                }
+
+                if (uiState.products.isEmpty()) {
+                    EmptyProductsState(
+                        onAddProduct = { showAddProductDialog = true },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        // Group products by category
+                        val groupedProducts = uiState.products.groupBy { it.category }
+                        
+                        groupedProducts.forEach { (category, products) ->
+                            item {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = category,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                            
+                            items(products) { product ->
+                                ProductItem(
+                                    product = product,
+                                    onToggle = { viewModel.toggleProduct(product) },
+                                    onDelete = { viewModel.deleteProduct(product.id) },
+                                    onAssign = { showAssignDialog = product },
+                                    onEditPrice = { /* Show edit price dialog */ }
+                                )
+                                Divider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                    modifier = Modifier.padding(start = 56.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -149,8 +225,6 @@ fun ListDetailScreen(
 
     if (showAssignDialog != null) {
         val product = showAssignDialog!!
-        // In a real app, this would fetch list members. 
-        // For this demo, we'll just allow typing a name/email or "Assign to me".
         AlertDialog(
             onDismissRequest = { showAssignDialog = null },
             title = { Text("שייך מוצר") },
@@ -176,9 +250,45 @@ fun ListDetailScreen(
         AddProductDialog(
             categories = allCategories,
             onDismiss = { showAddProductDialog = false },
-            onConfirm = { name, quantity, unit, category, notes ->
-                viewModel.addProduct(name, quantity, unit, category, notes)
+            onConfirm = { name, quantity, unit, category, notes, price ->
+                viewModel.addProduct(name, quantity, unit, category, notes, price)
                 showAddProductDialog = false
+            }
+        )
+    }
+    
+    // Simple Budget Dialog Implementation
+    if (showBudgetDialog) {
+        var budgetAmount by remember { mutableStateOf(uiState.shoppingList?.budget?.toString() ?: "") }
+        
+        AlertDialog(
+            onDismissRequest = { showBudgetDialog = false },
+            title = { Text("הגדרת תקציב") },
+            text = {
+                OutlinedTextField(
+                    value = budgetAmount,
+                    onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) budgetAmount = it },
+                    label = { Text("סכום בש\"ח") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val amount = budgetAmount.toDoubleOrNull()
+                    if (amount != null) {
+                        // This assumes setBudget exists in ViewModel (will need implementation)
+                         viewModel.setBudget(amount)
+                    }
+                    showBudgetDialog = false
+                }) {
+                    Text("שמור")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBudgetDialog = false }) {
+                    Text("ביטול")
+                }
             }
         )
     }
@@ -200,7 +310,8 @@ fun ProductItem(
     product: Product,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
-    onAssign: () -> Unit
+    onAssign: () -> Unit,
+    onEditPrice: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -213,7 +324,8 @@ fun ProductItem(
             Text(
                 text = product.name,
                 textDecoration = if (product.isCompleted) TextDecoration.LineThrough else null,
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (product.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
             )
         },
         supportingContent = {
@@ -221,42 +333,69 @@ fun ProductItem(
                 if (product.notes.isNotEmpty()) {
                     Text(text = product.notes, style = MaterialTheme.typography.bodySmall)
                 }
-                if (product.assignedToName != null) {
-                    Text(
-                        text = "משויך ל: ${product.assignedToName}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (product.price != null && product.price > 0) {
+                         Text(
+                            text = product.getDisplayPrice() ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    
+                    if (product.assignedToName != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text(
+                                text = product.assignedToName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else if (product.status == ProductStatus.CLAIMED) {
+                        Text(
+                            text = "🛒 מישהו קונה",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
             }
         },
         leadingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = product.isCompleted,
-                    onCheckedChange = { onToggle() },
-                    enabled = true
+            Checkbox(
+                checked = product.isCompleted,
+                onCheckedChange = { onToggle() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            )
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${product.quantity} ${product.unit}",
+                    style = MaterialTheme.typography.labelMedium
+                )
+                
                 IconButton(onClick = onAssign, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        Icons.Default.Person, 
+                        Icons.Default.PersonAdd, 
                         contentDescription = "שייך",
-                        tint = if (product.assignedToName != null) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            Color.Gray
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         },
-        trailingContent = {
-            Text(
-                text = "${product.quantity} ${product.unit}",
-                style = MaterialTheme.typography.labelMedium
-            )
-        },
         colors = ListItemDefaults.colors(
-            containerColor = if (product.isCompleted) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
+            containerColor = if (product.isCompleted) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
                              else MaterialTheme.colorScheme.surface
         )
     )
@@ -273,7 +412,7 @@ fun ProductItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("מחק", color = Color.Red)
+                    Text("מחק", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -290,13 +429,15 @@ fun ProductItem(
 fun AddProductDialog(
     categories: List<String>,
     onDismiss: () -> Unit,
-    onConfirm: (String, Int, String, String, String) -> Unit
+    onConfirm: (String, Int, String, String, String, Double?) -> Unit // Added price
 ) {
     var name by remember { mutableStateOf("") }
     var quantity by remember { mutableStateOf("1") }
     var unit by remember { mutableStateOf(ProductUnits.list.first()) }
     var category by remember { mutableStateOf(categories.firstOrNull() ?: "כללי") }
     var notes by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
+    var isPriceExpanded by remember { mutableStateOf(false) }
     
     // Dropdown states
     var unitExpanded by remember { mutableStateOf(false) }
@@ -310,14 +451,15 @@ fun AddProductDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("שם המוצר") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
 
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -327,7 +469,8 @@ fun AddProductDialog(
                         label = { Text("כמות") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
-                        singleLine = true
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     
@@ -338,7 +481,8 @@ fun AddProductDialog(
                             readOnly = true,
                             label = { Text("יחידה") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitExpanded) },
-                            modifier = Modifier.clickable { unitExpanded = true }
+                            modifier = Modifier.clickable { unitExpanded = true },
+                            shape = MaterialTheme.shapes.medium
                         )
                         DropdownMenu(
                             expanded = unitExpanded,
@@ -371,7 +515,8 @@ fun AddProductDialog(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium
                     )
                     DropdownMenu(
                         expanded = categoryExpanded,
@@ -388,14 +533,31 @@ fun AddProductDialog(
                         }
                     }
                 }
+
+                // Price Section (Expandable)
+                TextButton(onClick = { isPriceExpanded = !isPriceExpanded }) {
+                    Text(if (isPriceExpanded) "הסר מחיר" else "הוסף מחיר (אופציונלי)")
+                }
                 
-                // Allow custom category if not in list (OutlinedTextField is editable so user can just type)
+                if (isPriceExpanded) {
+                    OutlinedTextField(
+                        value = price,
+                        onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) price = it },
+                        label = { Text("מחיר ליחידה") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        prefix = { Text("₪") },
+                        shape = MaterialTheme.shapes.medium
+                    )
+                }
 
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("הערות (אופציונלי)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
             }
         },
@@ -403,11 +565,48 @@ fun AddProductDialog(
             Button(
                 onClick = { 
                     val qtyInt = quantity.toIntOrNull() ?: 1
-                    if (name.isNotBlank()) onConfirm(name, qtyInt, unit, category, notes) 
+                    val priceDouble = price.toDoubleOrNull()
+                    if (name.isNotBlank()) onConfirm(name, qtyInt, unit, category, notes, priceDouble) 
                 },
                 enabled = name.isNotBlank()
             ) {
                 Text("הוסף")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ביטול")
+            }
+        }
+    )
+}
+
+@Composable
+fun ShareListDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("שתף רשימה") },
+        text = {
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("אימייל של המשתמש") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { if (email.isNotBlank()) onConfirm(email) },
+                enabled = email.isNotBlank()
+            ) {
+                Text("שלח הזמנה")
             }
         },
         dismissButton = {

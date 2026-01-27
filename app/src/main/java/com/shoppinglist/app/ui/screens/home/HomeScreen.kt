@@ -5,22 +5,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.shoppinglist.app.data.model.Invitation
 import com.shoppinglist.app.data.model.ShoppingList
+import com.shoppinglist.app.ui.components.CompactBudgetIndicator
+import com.shoppinglist.app.ui.components.EmptyListsState
+import com.shoppinglist.app.ui.components.LoadingScreen
+import com.shoppinglist.app.ui.components.SkeletonListItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,20 +34,28 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("רשימות הקניות שלי") },
+            CenterAlignedTopAppBar(
+                title = { 
+                    Text(
+                        "הקניות שלי",
+                        style = MaterialTheme.typography.titleLarge
+                    ) 
+                },
                 actions = {
                     IconButton(onClick = { 
                         viewModel.signOut()
                         onSignOut()
                     }) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "התנתק")
+                        Icon(
+                            Icons.Default.Logout, 
+                            contentDescription = "התנתק",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
                 )
             )
         },
@@ -58,68 +65,89 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Global Chat FAB
-                FloatingActionButton(
+                SmallFloatingActionButton(
                     onClick = onNavigateToGlobalChat,
-                    containerColor = MaterialTheme.colorScheme.secondary
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ) {
-                    Icon(Icons.Default.Chat, contentDescription = "צ'אט כללי", tint = Color.White)
+                    Icon(Icons.Default.Chat, contentDescription = "צ'אט כללי")
                 }
+                
                 // Create List FAB
                 FloatingActionButton(
                     onClick = { showCreateDialog = true },
-                    containerColor = MaterialTheme.colorScheme.tertiary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "צור רשימה", tint = Color.White)
+                    Icon(Icons.Default.Add, contentDescription = "צור רשימה")
                 }
             }
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Invitations Section
-            if (uiState.invitations.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "הזמנות ממתינות",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+        if (uiState.isLoading) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                repeat(5) {
+                    SkeletonListItem()
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
-                items(uiState.invitations) { invitation ->
-                    InvitationItem(
-                        invitation = invitation,
-                        onAccept = { viewModel.acceptInvitation(invitation) },
-                        onDecline = { viewModel.declineInvitation(invitation) }
-                    )
-                }
-                item { Divider() }
             }
-
-            // Lists Section
-            if (uiState.shoppingLists.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("אין לך רשימות קניות עדיין. צור אחת חדשה!")
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                // Invitations Section
+                if (uiState.invitations.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "הזמנות ממתינות",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    items(uiState.invitations) { invitation ->
+                        InvitationItem(
+                            invitation = invitation,
+                            onAccept = { viewModel.acceptInvitation(invitation) },
+                            onDecline = { viewModel.declineInvitation(invitation) }
+                        )
+                    }
+                    item { 
+                        Divider(
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        ) 
                     }
                 }
-            } else {
-                items(uiState.shoppingLists) { list ->
-                    ShoppingListItem(
-                        shoppingList = list,
-                        onClick = { onNavigateToList(list.id) },
-                        onDuplicate = { viewModel.duplicateList(list, "${list.name} (עותק)") },
-                        onDelete = { viewModel.deleteList(list.id) }
-                    )
+
+                // Lists Section
+                if (uiState.shoppingLists.isEmpty() && uiState.invitations.isEmpty()) {
+                    item {
+                        EmptyListsState(
+                            onCreateList = { showCreateDialog = true },
+                            modifier = Modifier.fillParentMaxHeight(0.7f)
+                        )
+                    }
+                } else {
+                    items(
+                        items = uiState.shoppingLists,
+                        key = { it.id }
+                    ) { list ->
+                        ShoppingListItem(
+                            shoppingList = list,
+                            onClick = { onNavigateToList(list.id) },
+                            onDuplicate = { viewModel.duplicateList(list, "${list.name} (עותק)") },
+                            onDelete = { viewModel.deleteList(list.id) }
+                        )
+                    }
                 }
             }
         }
@@ -144,8 +172,10 @@ fun InvitationItem(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+        ),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -155,19 +185,24 @@ fun InvitationItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "הוזמנת לרשימה: ${invitation.listName}",
-                    style = MaterialTheme.typography.titleSmall
+                    text = "הוזמנת להצטרף",
+                    style = MaterialTheme.typography.labelSmall
                 )
                 Text(
-                    text = "על ידי: ${invitation.inviterName}",
+                    text = invitation.listName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "מאת: ${invitation.inviterName}",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
             IconButton(onClick = onAccept) {
-                Icon(Icons.Default.Check, contentDescription = "אשר", tint = Color.Green)
+                Icon(Icons.Default.CheckCircle, contentDescription = "אשר", tint = MaterialTheme.colorScheme.primary)
             }
             IconButton(onClick = onDecline) {
-                Icon(Icons.Default.Close, contentDescription = "דחה", tint = Color.Red)
+                Icon(Icons.Default.Cancel, contentDescription = "דחה", tint = MaterialTheme.colorScheme.error)
             }
         }
     }
@@ -186,62 +221,137 @@ fun ShoppingListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(16.dp)
         ) {
-            Icon(
-                Icons.Default.ShoppingBag,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = shoppingList.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                if (shoppingList.description.isNotEmpty()) {
-                    Text(
-                        text = shoppingList.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    text = "מוצרים: ${shoppingList.completedCount}/${shoppingList.itemCount}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-            }
-            
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "אפשרויות")
-                }
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Icon placeholder or emoji if we had one
+                Surface(
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("שכפל רשימה") },
-                        onClick = {
-                            showMenu = false
-                            onDuplicate()
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.ShoppingBag,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = shoppingList.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        
+                        Box {
+                            IconButton(
+                                onClick = { showMenu = true },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.MoreVert, 
+                                    contentDescription = "אפשרויות",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("שכפל רשימה") },
+                                    leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                                    onClick = {
+                                        showMenu = false
+                                        onDuplicate()
+                                    }
+                                )
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("מחק רשימה", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        showMenu = false
+                                        onDelete()
+                                    }
+                                )
+                            }
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("מחק רשימה") },
-                        onClick = {
-                            showMenu = false
-                            onDelete()
+                    }
+                    
+                    if (shoppingList.description.isNotEmpty()) {
+                        Text(
+                            text = shoppingList.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Progress and Budget Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Items count
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = "${shoppingList.completedCount}/${shoppingList.itemCount} מוצרים",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    )
+                        
+                        // Budget if exists
+                        if (shoppingList.budget != null && shoppingList.budget > 0) {
+                            CompactBudgetIndicator(
+                                budget = shoppingList.budget,
+                                totalSpent = shoppingList.totalSpent,
+                                currency = shoppingList.currency
+                            )
+                        }
+                    }
+                    
+                    // Progress bar
+                    if (shoppingList.itemCount > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { shoppingList.getCompletionPercentage() / 100f },
+                            modifier = Modifier.fillMaxWidth().height(4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primaryContainer,
+                        )
+                    }
                 }
             }
         }
@@ -265,13 +375,17 @@ fun CreateListDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("שם הרשימה") },
-                    singleLine = true
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("תיאור (אופציונלי)") }
+                    label = { Text("תיאור (אופציונלי)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 )
             }
         },

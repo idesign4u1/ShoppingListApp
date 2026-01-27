@@ -3,6 +3,7 @@ package com.shoppinglist.app.ui.screens.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shoppinglist.app.data.repository.AuthRepository
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,9 +56,24 @@ class AuthViewModel @Inject constructor(
 
     fun signUp(email: String, password: String, displayName: String) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
             val result = authRepository.signUp(email.trim(), password, displayName.trim())
+            result.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)
+                },
+                onFailure = { e ->
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = translateError(e.message))
+                }
+            )
+        }
+    }
+
+    fun signInWithGoogle(account: GoogleSignInAccount) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            val result = authRepository.signInWithGoogle(account)
             result.fold(
                 onSuccess = {
                     _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)

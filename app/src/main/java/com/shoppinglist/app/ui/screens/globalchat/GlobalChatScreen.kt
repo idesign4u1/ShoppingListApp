@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,8 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -55,6 +60,15 @@ class GlobalChatViewModel @Inject constructor(
             chatRepository.sendMessage("GLOBAL", text)
         }
     }
+
+    fun sendImage(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val result = chatRepository.uploadImage(uri)
+            result.onSuccess { url ->
+                chatRepository.sendMessage("GLOBAL", "", url)
+            }
+        }
+    }
     
     fun isMyMessage(message: ChatMessage): Boolean {
         return message.senderId == currentUserId
@@ -69,6 +83,12 @@ fun GlobalChatScreen(
 ) {
     val messages by viewModel.messages.collectAsState()
     var text by remember { mutableStateOf("") }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { viewModel.sendImage(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -134,6 +154,15 @@ fun GlobalChatScreen(
                         shape = RoundedCornerShape(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.secondaryContainer, androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(Icons.Default.Image, contentDescription = "צרף תמונה", tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     FloatingActionButton(
                         onClick = {
                             viewModel.sendMessage(text)
@@ -187,11 +216,31 @@ fun GlobalMessageItem(message: ChatMessage, isMyMessage: Boolean) {
             shadowElevation = 1.dp
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isMyMessage) Color.White else MaterialTheme.colorScheme.onSurface
-                )
+                if (message.imageUrl != null) {
+                    /*
+                    AsyncImage(
+                        model = message.imageUrl,
+                        contentDescription = "Image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                    */
+                    Text("[Image]", color = MaterialTheme.colorScheme.primary)
+                    if (message.text.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+                
+                if (message.text.isNotEmpty()) {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isMyMessage) Color.White else MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
         

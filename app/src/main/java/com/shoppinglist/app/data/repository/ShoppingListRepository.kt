@@ -212,4 +212,36 @@ class ShoppingListRepository @Inject constructor(
             Result.failure(e)
         }
     }
+    suspend fun updateListMetadata(
+        listId: String, 
+        itemCount: Int, 
+        completedCount: Int,
+        totalSpent: Double,
+        estimatedTotal: Double
+    ) {
+        try {
+            listsCollection.document(listId).update(
+                mapOf(
+                    "itemCount" to itemCount,
+                    "completedCount" to completedCount,
+                    "totalSpent" to totalSpent,
+                    "estimatedTotal" to estimatedTotal,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            ).await()
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun updateBudget(listId: String, budget: Double) {
+        try {
+            listsCollection.document(listId).update(
+                mapOf(
+                    "budget" to budget,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            ).await()
+        } catch (_: Exception) {
+        }
+    }
 }

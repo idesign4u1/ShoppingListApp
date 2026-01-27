@@ -4,6 +4,7 @@ import android.net.Uri
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -26,7 +27,8 @@ data class ChatMessage(
 @Singleton
 class ChatRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage
 ) {
     private val chatCollection = firestore.collection("chats")
 
@@ -69,8 +71,14 @@ class ChatRepository @Inject constructor(
 
     // Placeholder for image upload - requires Firebase Storage
     suspend fun uploadImage(uri: Uri): Result<String> {
-        // TODO: Implement Firebase Storage upload
-        // For now, return a placeholder or error
-        return Result.failure(Exception("Image upload requires Firebase Storage setup"))
+        return try {
+            val uuid = java.util.UUID.randomUUID().toString()
+            val ref = storage.reference.child("chat_images/$uuid")
+            ref.putFile(uri).await()
+            val downloadUrl = ref.downloadUrl.await()
+            Result.success(downloadUrl.toString())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

@@ -62,6 +62,7 @@ dependencies {
 
     // Compose
     implementation(platform("androidx.compose:compose-bom:2023.10.01"))
+    implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -75,6 +76,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.6.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.48")

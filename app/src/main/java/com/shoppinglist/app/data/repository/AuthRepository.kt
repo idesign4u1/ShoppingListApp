@@ -3,14 +3,14 @@ package com.shoppinglist.app.data.repository
 import android.content.Context
 import android.content.Intent
 import androidx.activity.result.ActivityResultLauncher
-// import com.google.android.gms.auth.api.signin.GoogleSignIn
-// import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-// import com.google.android.gms.auth.api.signin.GoogleSignInClient
-// import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-// import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-// import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.shoppinglist.app.data.model.User
@@ -85,7 +85,6 @@ class AuthRepository @Inject constructor(
         auth.signOut()
     }
 
-    /* TODO: Enable after Gradle sync
     suspend fun signInWithGoogle(account: GoogleSignInAccount): Result<FirebaseUser> {
         return try {
             val credential = GoogleAuthProvider.getCredential(account.idToken, null)
@@ -113,5 +112,4 @@ class AuthRepository @Inject constructor(
             .build()
         return GoogleSignIn.getClient(context, gso)
     }
-    */
 }

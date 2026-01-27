@@ -45,7 +45,8 @@ class ProductRepository @Inject constructor(
         quantity: Int,
         unit: String,
         category: String,
-        notes: String
+        notes: String,
+        price: Double? = null
     ): Result<Product> {
         return try {
             val user = auth.currentUser ?: throw Exception("משתמש לא מחובר")
@@ -60,7 +61,9 @@ class ProductRepository @Inject constructor(
                 category = category,
                 notes = notes,
                 addedBy = user.uid,
-                addedByEmail = user.email ?: ""
+                addedByEmail = user.email ?: "",
+                price = price,
+                status = com.shoppinglist.app.data.model.ProductStatus.PENDING
             )
 
             docRef.set(product).await()

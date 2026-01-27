@@ -64,22 +64,37 @@ class ListDetailViewModel @Inject constructor(
         viewModelScope.launch {
             productRepository.getProductsForList(listId).collect { products ->
                 _uiState.value = _uiState.value.copy(products = products)
-                updateListCounts(products)
+                updateListCountsAndBudget(products)
             }
         }
     }
 
-    private fun updateListCounts(products: List<Product>) {
+    private fun updateListCountsAndBudget(products: List<Product>) {
         viewModelScope.launch {
-            shoppingListRepository.updateItemCounts(
+            // Calculate totals
+            val totalItems = products.size
+            val completedItems = products.count { it.isCompleted }
+            val totalSpent = products.filter { it.isCompleted }.sumOf { it.getTotalPrice() ?: 0.0 }
+            val estimatedTotal = products.sumOf { it.getTotalPrice() ?: 0.0 }
+
+            // Update shopping list via repository
+            shoppingListRepository.updateListMetadata(
                 listId = listId,
-                total = products.size,
-                completed = products.count { it.isCompleted }
+                itemCount = totalItems,
+                completedCount = completedItems,
+                totalSpent = totalSpent,
+                estimatedTotal = estimatedTotal
             )
         }
     }
 
-    fun addProduct(name: String, quantity: Int, unit: String, category: String, notes: String) {
+    fun setBudget(amount: Double) {
+        viewModelScope.launch {
+            shoppingListRepository.updateBudget(listId, amount)
+        }
+    }
+
+    fun addProduct(name: String, quantity: Int, unit: String, category: String, notes: String, price: Double? = null) {
         viewModelScope.launch {
             // Add category if new
             if (category !in _uiState.value.categories && category !in com.shoppinglist.app.data.model.ProductCategories.list) {
@@ -87,7 +102,7 @@ class ListDetailViewModel @Inject constructor(
                 loadCategories()
             }
             
-            val result = productRepository.addProduct(listId, name, quantity, unit, category, notes)
+            val result = productRepository.addProduct(listId, name, quantity, unit, category, notes, price)
             result.onFailure {
                 _uiState.value = _uiState.value.copy(error = it.message)
             }
