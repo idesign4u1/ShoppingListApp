@@ -167,4 +167,14 @@ class ListDetailViewModel @Inject constructor(
             productRepository.updateProduct(updatedProduct)
         }
     }
+
+    fun updateProductPriceAndToggle(product: Product, price: Double) {
+        viewModelScope.launch {
+            // Update price
+            val updatedProduct = product.copy(price = price)
+            productRepository.updateProduct(updatedProduct)
+            // Then toggle completion (which sets isCompleted=true)
+            productRepository.toggleProductCompletion(updatedProduct)
+        }
+    }
 }

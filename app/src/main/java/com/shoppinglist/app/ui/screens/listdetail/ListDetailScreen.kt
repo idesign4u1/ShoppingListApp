@@ -204,10 +204,16 @@ fun ListDetailScreen(
                                 }
                             }
                             
-                            items(products) { product ->
+                            items(products, key = { it.id }) { product ->
                                 ProductItem(
                                     product = product,
-                                    onToggle = { viewModel.toggleProduct(product) },
+                                    onToggle = { 
+                                        if (!product.isCompleted) {
+                                            productToComplete = product
+                                        } else {
+                                            viewModel.toggleProduct(product)
+                                        }
+                                    },
                                     onDelete = { viewModel.deleteProduct(product.id) },
                                     onAssign = { showAssignDialog = product },
                                     onEditPrice = { showEditPriceDialog = product }
@@ -298,13 +304,68 @@ fun ListDetailScreen(
         ShareListDialog(
             onDismiss = { showShareDialog = false },
             onConfirm = { email ->
+                // Try to invite via internal system
                 viewModel.inviteUser(email)
                 showShareDialog = false
+            },
+            onShareLink = {
+                // Fallback: Share via system intent
+                val sendIntent: android.content.Intent = android.content.Intent().apply {
+                    action = android.content.Intent.ACTION_SEND
+                    putExtra(android.content.Intent.EXTRA_TEXT, "היי! בוא להצטרף לרשימת הקניות שלי '${uiState.shoppingList?.name}' באפליקציה. (כאן יהיה קישור להורדה)")
+                    type = "text/plain"
+                }
+                val shareIntent = android.content.Intent.createChooser(sendIntent, "הזמן חבר באמצעות...")
+                androidx.compose.ui.platform.LocalContext.current.startActivity(shareIntent)
+            }
+        )
+    }
+
+    // State for the "Price Check" dialog when marking as completed
+    var productToComplete by remember { mutableStateOf<Product?>(null) }
+
+    if (productToComplete != null) {
+        val product = productToComplete!!
+        var priceInput by remember { mutableStateOf(product.price?.toString() ?: "") }
+        
+        AlertDialog(
+            onDismissRequest = { productToComplete = null },
+            title = { Text("כמה זה עלה?") },
+            text = {
+                Column {
+                    Text("המוצר '${product.name}' סומן כנקנה.", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = priceInput,
+                        onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) priceInput = it },
+                        label = { Text("מחיר (אופציונלי)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        prefix = { Text("₪") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val price = priceInput.toDoubleOrNull() ?: 0.0
+                    // Update price AND toggle completion status
+                    viewModel.updateProductPriceAndToggle(product, price)
+                    productToComplete = null
+                }) {
+                    Text("אישור")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { productToComplete = null }) {
+                    Text("ביטול")
+                }
             }
         )
     }
 
     if (showEditPriceDialog != null) {
+        // ... (Existing EditPriceDialog code)
         val product = showEditPriceDialog!!
         var priceInput by remember { mutableStateOf(product.price?.toString() ?: "") }
         
@@ -621,7 +682,8 @@ fun AddProductDialog(
 @Composable
 fun ShareListDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String) -> Unit,
+    onShareLink: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
 
@@ -645,11 +707,23 @@ fun ShareListDialog(
             )
         },
         confirmButton = {
-            Button(
-                onClick = { if (email.isNotBlank()) onConfirm(email) },
-                enabled = email.isNotBlank()
-            ) {
-                Text("שלח הזמנה")
+            Column(horizontalAlignment = Alignment.End) {
+                Button(
+                    onClick = { if (email.isNotBlank()) onConfirm(email) },
+                    enabled = email.isNotBlank()
+                ) {
+                    Text("שלח הזמנה")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = onShareLink) {
+                    Icon(
+                        Icons.Default.Share, 
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("שתף קישור")
+                }
             }
         },
         dismissButton = {
