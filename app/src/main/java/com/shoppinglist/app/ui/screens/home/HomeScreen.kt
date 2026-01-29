@@ -31,21 +31,20 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var sortOption by remember { mutableStateOf("date") } // date, name
+
+    // Sort lists based on selection
+    val sortedLists = remember(uiState.shoppingLists, sortOption) {
+        when (sortOption) {
+            "name" -> uiState.shoppingLists.sortedBy { it.name }
+            else -> uiState.shoppingLists.sortedByDescending { it.createdAt }
+        }
+    }
 
     Scaffold(
         topBar = {
-            var showMenu by remember { mutableStateOf(false) }
-            var showProfileDialog by remember { mutableStateOf(false) }
-            var sortOption by remember { mutableStateOf("date") } // date, name
-
-            // Sort lists based on selection
-            val sortedLists = remember(uiState.shoppingLists, sortOption) {
-                when (sortOption) {
-                    "name" -> uiState.shoppingLists.sortedBy { it.name }
-                    else -> uiState.shoppingLists.sortedByDescending { it.createdAt }
-                }
-            }
-            
             TopAppBar(
                 title = { 
                     Column {
