@@ -674,7 +674,7 @@ fun AddProductDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Name Input with Autocomplete & Voice
+                 // Name Input
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = name,
@@ -696,7 +696,6 @@ fun AddProductDialog(
                                 try {
                                     speechLauncher.launch(intent)
                                 } catch (e: Exception) {
-                                    // Handle case where speech recognition is not available
                                 }
                             }) {
                                 Icon(Icons.Default.Mic, contentDescription = "דיבור")
@@ -745,8 +744,6 @@ fun AddProductDialog(
                         singleLine = true,
                         shape = MaterialTheme.shapes.medium
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     Box(modifier = Modifier.weight(1f)) {
@@ -809,9 +806,7 @@ fun AddProductDialog(
                     }
                 }
 
-                }
-
-                // Price Section (Expandable)
+                // Price Section
                 TextButton(onClick = { isPriceExpanded = !isPriceExpanded }) {
                     Text(if (isPriceExpanded) "הסר מחיר" else "הוסף מחיר (אופציונלי)")
                 }
@@ -863,7 +858,6 @@ fun AddProductDialog(
         }
     )
 }
-
 
 @Composable
 fun ShareListDialog(
@@ -919,5 +913,3 @@ fun ShareListDialog(
         }
     )
 }
-
-
