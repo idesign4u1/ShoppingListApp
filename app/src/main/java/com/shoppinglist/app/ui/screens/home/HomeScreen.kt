@@ -113,25 +113,76 @@ fun HomeScreen(
             )
 
             if (showProfileDialog) {
+                var isEditing by remember { mutableStateOf(false) }
+                var newName by remember { mutableStateOf(viewModel.currentUser?.displayName ?: "") }
+
                 AlertDialog(
                     onDismissRequest = { showProfileDialog = false },
                     title = { Text("הפרופיל שלי") },
                     text = {
-                        Column {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Icon(
                                 Icons.Default.AccountCircle, 
                                 contentDescription = null,
-                                modifier = Modifier.size(64.dp).align(Alignment.CenterHorizontally),
+                                modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("שם: ${viewModel.currentUser?.displayName ?: "לא מוגדר"}")
-                            Text("אימייל: ${viewModel.currentUser?.email}")
+                            
+                            if (isEditing) {
+                                OutlinedTextField(
+                                    value = newName,
+                                    onValueChange = { newName = it },
+                                    label = { Text("שם") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = uiState.userDisplayName ?: viewModel.currentUser?.displayName ?: "לא מוגדר",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    IconButton(onClick = { isEditing = true }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "ערוך", modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "אימייל: ${viewModel.currentUser?.email}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     },
                     confirmButton = {
-                        TextButton(onClick = { showProfileDialog = false }) {
-                            Text("סגור")
+                        if (isEditing) {
+                            Button(onClick = { 
+                                viewModel.updateProfileName(newName)
+                                isEditing = false
+                            }) {
+                                Text("שמור")
+                            }
+                        } else {
+                            TextButton(onClick = { showProfileDialog = false }) {
+                                Text("סגור")
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        if (isEditing) {
+                            TextButton(onClick = { isEditing = false }) {
+                                Text("ביטול")
+                            }
                         }
                     }
                 )

@@ -20,7 +20,8 @@ data class HomeUiState(
     val invitations: List<Invitation> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val userEmail: String? = null
+    val userEmail: String? = null,
+    val userDisplayName: String? = null
 )
 
 @HiltViewModel
@@ -50,7 +51,8 @@ class HomeViewModel @Inject constructor(
     private fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
-                userEmail = authRepository.currentUser?.email
+                userEmail = authRepository.currentUser?.email,
+                userDisplayName = authRepository.currentUser?.displayName
             )
 
             launch {
@@ -113,6 +115,25 @@ class HomeViewModel @Inject constructor(
     
     fun signOut() {
         authRepository.signOut()
+    }
+
+    fun updateProfileName(newName: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            val result = authRepository.updateDisplayName(newName)
+            result.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false, 
+                        error = null,
+                        userDisplayName = newName // Update local state for immediate UI feedback
+                    )
+                },
+                onFailure = {
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = it.message)
+                }
+            )
+        }
     }
 
     fun clearError() {

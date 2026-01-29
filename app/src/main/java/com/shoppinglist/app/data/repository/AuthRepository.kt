@@ -112,4 +112,24 @@ class AuthRepository @Inject constructor(
             .build()
         return GoogleSignIn.getClient(context, gso)
     }
+
+    suspend fun updateDisplayName(newName: String): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: throw Exception("משתמש לא מחובר")
+            
+            // Update Auth Profile
+            val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(newName)
+                .build()
+            user.updateProfile(profileUpdates).await()
+            
+            // Update Firestore
+            firestore.collection("users").document(user.uid)
+                .update("displayName", newName).await()
+                
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

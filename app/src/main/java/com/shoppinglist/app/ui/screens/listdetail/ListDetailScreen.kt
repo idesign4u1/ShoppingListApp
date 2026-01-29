@@ -295,18 +295,47 @@ fun ListDetailScreen(
 
     if (showAssignDialog != null) {
         val product = showAssignDialog!!
+        val members = uiState.shoppingList?.memberEmails ?: emptyList()
+
         AlertDialog(
             onDismissRequest = { showAssignDialog = null },
             title = { Text("שייך מוצר") },
-            text = { Text("למי לשייך את ${product.name}?") },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.assignProduct(product, "me", "אני")
-                    showAssignDialog = null
-                }) {
-                    Text("שייך לי")
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("למי לשייך את ${product.name}?")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Me option
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.assignProduct(product, "me", "אני")
+                            showAssignDialog = null
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("אני")
+                    }
+                    
+                    // Other members
+                    members.forEach { email ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.assignProduct(product, email, email.substringBefore("@"))
+                                showAssignDialog = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(email)
+                        }
+                    }
                 }
             },
+            confirmButton = {},
             dismissButton = {
                  TextButton(onClick = { showAssignDialog = null }) {
                     Text("ביטול")
@@ -495,8 +524,8 @@ fun ProductItem(
             Text(
                 text = product.name,
                 textDecoration = if (product.isCompleted) TextDecoration.LineThrough else null,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (product.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                color = if (product.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
             )
         },
         supportingContent = {
@@ -510,7 +539,7 @@ fun ProductItem(
                          Text(
                             text = product.getDisplayPrice() ?: "",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = if (product.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -544,7 +573,8 @@ fun ProductItem(
                 onCheckedChange = { onToggle() },
                 colors = CheckboxDefaults.colors(
                     checkedColor = MaterialTheme.colorScheme.primary,
-                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    checkmarkColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
@@ -552,7 +582,8 @@ fun ProductItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "${product.quantity} ${product.unit}",
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
+                    textDecoration = if (product.isCompleted) TextDecoration.LineThrough else null
                 )
                 
                 IconButton(onClick = onAssign, modifier = Modifier.size(32.dp)) {
@@ -566,7 +597,7 @@ fun ProductItem(
             }
         },
         colors = ListItemDefaults.colors(
-            containerColor = if (product.isCompleted) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
+            containerColor = if (product.isCompleted) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
                              else MaterialTheme.colorScheme.surface
         )
     )
@@ -716,6 +747,8 @@ fun AddProductDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedTextField(
                             value = unit,
@@ -776,6 +809,8 @@ fun AddProductDialog(
                     }
                 }
 
+                }
+
                 // Price Section (Expandable)
                 TextButton(onClick = { isPriceExpanded = !isPriceExpanded }) {
                     Text(if (isPriceExpanded) "הסר מחיר" else "הוסף מחיר (אופציונלי)")
@@ -798,6 +833,36 @@ fun AddProductDialog(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("הערות (אופציונלי)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    shape = MaterialTheme.shapes.medium
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(
+                        name,
+                        quantity.toIntOrNull() ?: 1,
+                        unit,
+                        category,
+                        notes,
+                        price.toDoubleOrNull()
+                    )
+                },
+                enabled = name.isNotBlank()
+            ) {
+                Text("הוסף")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ביטול")
+            }
+        }
+    )
+}
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium
                 )
