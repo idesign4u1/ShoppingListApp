@@ -863,30 +863,7 @@ fun AddProductDialog(
         }
     )
 }
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { 
-                    val qtyInt = quantity.toIntOrNull() ?: 1
-                    val priceDouble = price.toDoubleOrNull()
-                    if (name.isNotBlank()) onConfirm(name, qtyInt, unit, category, notes, priceDouble) 
-                },
-                enabled = name.isNotBlank()
-            ) {
-                Text("הוסף")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("ביטול")
-            }
-        }
-    )
-}
+
 
 @Composable
 fun ShareListDialog(
