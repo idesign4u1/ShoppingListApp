@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.shoppinglist.app.data.model.Invitation
 import com.shoppinglist.app.data.model.ShoppingList
 import com.shoppinglist.app.data.repository.AuthRepository
+import com.shoppinglist.app.data.repository.CatalogRepository
 import com.shoppinglist.app.data.repository.InvitationRepository
 import com.shoppinglist.app.data.repository.ShoppingListRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,8 @@ data class HomeUiState(
 class HomeViewModel @Inject constructor(
     private val shoppingListRepository: ShoppingListRepository,
     private val invitationRepository: InvitationRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val catalogRepository: CatalogRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -34,6 +36,13 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadData()
+        seedCatalog()
+    }
+
+    private fun seedCatalog() {
+        viewModelScope.launch {
+            catalogRepository.seedInitialDataIfNeeded()
+        }
     }
 
     private fun loadData() {

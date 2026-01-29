@@ -34,30 +34,109 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
+            var showMenu by remember { mutableStateOf(false) }
+            var showProfileDialog by remember { mutableStateOf(false) }
+            var sortOption by remember { mutableStateOf("date") } // date, name
+
+            // Sort lists based on selection
+            val sortedLists = remember(uiState.shoppingLists, sortOption) {
+                when (sortOption) {
+                    "name" -> uiState.shoppingLists.sortedBy { it.name }
+                    else -> uiState.shoppingLists.sortedByDescending { it.createdAt }
+                }
+            }
+            
+            TopAppBar(
                 title = { 
-                    Text(
-                        "הקניות שלי",
-                        style = MaterialTheme.typography.titleLarge
-                    ) 
-                },
-                actions = {
-                    IconButton(onClick = { 
-                        viewModel.signOut()
-                        onSignOut()
-                    }) {
-                        Icon(
-                            Icons.Default.Logout, 
-                            contentDescription = "התנתק",
-                            tint = MaterialTheme.colorScheme.onSurface
+                    Column {
+                        Text(
+                            "הקניות שלי",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            "שלום, ${viewModel.currentUser?.displayName ?: "משתמש"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                actions = {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "תפריט")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("פרופיל אישי") },
+                            leadingIcon = { Icon(Icons.Default.Person, null) },
+                            onClick = { 
+                                showMenu = false
+                                showProfileDialog = true 
+                            }
+                        )
+                        Divider()
+                        DropdownMenuItem(
+                            text = { Text("מיין לפי תאריך") },
+                            leadingIcon = { Icon(Icons.Default.CalendarToday, null) },
+                            trailingIcon = { if(sortOption == "date") Icon(Icons.Default.Check, null) },
+                            onClick = { 
+                                sortOption = "date"
+                                showMenu = false 
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("מיין לפי שם") },
+                            leadingIcon = { Icon(Icons.Default.SortByAlpha, null) },
+                            trailingIcon = { if(sortOption == "name") Icon(Icons.Default.Check, null) },
+                            onClick = { 
+                                sortOption = "name"
+                                showMenu = false 
+                            }
+                        )
+                        Divider()
+                        DropdownMenuItem(
+                            text = { Text("התנתק", color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Default.Logout, null, tint = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                showMenu = false
+                                viewModel.signOut()
+                                onSignOut()
+                            }
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                 )
             )
+
+            if (showProfileDialog) {
+                AlertDialog(
+                    onDismissRequest = { showProfileDialog = false },
+                    title = { Text("הפרופיל שלי") },
+                    text = {
+                        Column {
+                            Icon(
+                                Icons.Default.AccountCircle, 
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp).align(Alignment.CenterHorizontally),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("שם: ${viewModel.currentUser?.displayName ?: "לא מוגדר"}")
+                            Text("אימייל: ${viewModel.currentUser?.email}")
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showProfileDialog = false }) {
+                            Text("סגור")
+                        }
+                    }
+                )
+            }
         },
         floatingActionButton = {
             Column(
@@ -138,7 +217,7 @@ fun HomeScreen(
                     }
                 } else {
                     items(
-                        items = uiState.shoppingLists,
+                        items = sortedLists,
                         key = { it.id }
                     ) { list ->
                         ShoppingListItem(

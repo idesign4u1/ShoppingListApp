@@ -20,7 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.speech.RecognizerIntent
+import android.app.Activity
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.shoppinglist.app.data.model.CatalogItem
 import com.shoppinglist.app.data.model.Product
 import com.shoppinglist.app.data.model.ProductCategories
 import com.shoppinglist.app.data.model.ProductStatus
@@ -29,6 +34,7 @@ import com.shoppinglist.app.ui.components.BudgetTracker
 import com.shoppinglist.app.ui.components.EmptyProductsState
 import com.shoppinglist.app.ui.components.LoadingScreen
 import com.shoppinglist.app.ui.components.SkeletonListItem
+import com.shoppinglist.app.ui.components.PieChart
 
 import androidx.compose.ui.platform.LocalContext
 
@@ -48,6 +54,17 @@ fun ListDetailScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showBudgetDialog by remember { mutableStateOf(false) }
     var showEditPriceDialog by remember { mutableStateOf<Product?>(null) }
+    var showAnalyticsDialog by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+            viewModel.enableLocationReminder()
+        } else {
+            // Permission denied
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -59,7 +76,7 @@ fun ListDetailScreen(
                             style = MaterialTheme.typography.titleLarge
                         )
                         uiState.shoppingList?.let { list ->
-                             Text(
+                            Text(
                                 "סה\"כ: ${list.completedCount}/${list.itemCount}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -83,6 +100,28 @@ fun ListDetailScreen(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("ניתוח הוצאות") },
+                            leadingIcon = { Icon(Icons.Default.PieChart, null) },
+                            onClick = {
+                                showMenu = false
+                                showAnalyticsDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("הגדר מיקום סופר (תזכורת)") },
+                            leadingIcon = { Icon(Icons.Default.AddLocation, null) },
+                            onClick = {
+                                showMenu = false
+                                locationPermissionLauncher.launch(
+                                    arrayOf(
+                                        android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                        android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            }
+                        )
+                        Divider()
                         DropdownMenuItem(
                             text = { Text("הגדר תקציב") },
                             leadingIcon = { Icon(Icons.Default.AccountBalance, null) },
@@ -234,6 +273,26 @@ fun ListDetailScreen(
         }
     }
 
+    if (showAnalyticsDialog) {
+        val expenses = viewModel.getExpensesByCategory()
+        AlertDialog(
+            onDismissRequest = { showAnalyticsDialog = false },
+            title = { Text("ניתוח הוצאות") },
+            text = {
+                if (expenses.values.sum() > 0) {
+                    PieChart(data = expenses)
+                } else {
+                    Text("אין נתונים להצגה (רכוש מוצרים כדי לראות ניתוח)")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAnalyticsDialog = false }) {
+                    Text("סגור")
+                }
+            }
+        )
+    }
+
     if (showAssignDialog != null) {
         val product = showAssignDialog!!
         AlertDialog(
@@ -260,6 +319,8 @@ fun ListDetailScreen(
         val allCategories = (ProductCategories.list + uiState.categories).distinct()
         AddProductDialog(
             categories = allCategories,
+            suggestions = uiState.catalogSuggestions,
+            onSearch = { query -> viewModel.searchCatalog(query) },
             onDismiss = { showAddProductDialog = false },
             onConfirm = { name, quantity, unit, category, notes, price ->
                 viewModel.addProduct(name, quantity, unit, category, notes, price)
@@ -308,15 +369,26 @@ fun ListDetailScreen(
         ShareListDialog(
             onDismiss = { showShareDialog = false },
             onConfirm = { email ->
-                // Try to invite via internal system
                 viewModel.inviteUser(email)
+                // Also trigger email intent for immediate action
+                val emailIntent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                    data = android.net.Uri.parse("mailto:$email")
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, "הזמנה להצטרף לרשימת הקניות: ${uiState.shoppingList?.name}")
+                    putExtra(android.content.Intent.EXTRA_TEXT, "היי,\n\nאני מזמין אותך להצטרף לרשימת הקניות שלי '${uiState.shoppingList?.name}' באפליקציית ה-Shopping List.\n\nבוא נערוך קניות ביחד!\n\n(אם האפליקציה מותקנת אצלך, ההזמנה כבר מחכה לך בפנים)")
+                }
+                try {
+                    context.startActivity(emailIntent)
+                } catch (e: Exception) {
+                    // Fallback if no email client
+                    android.widget.Toast.makeText(context, "לא נמצאה אפליקציית דואר", android.widget.Toast.LENGTH_SHORT).show()
+                }
                 showShareDialog = false
             },
             onShareLink = {
-                // Fallback: Share via system intent
-                val sendIntent: android.content.Intent = android.content.Intent().apply {
+                // Share via generic system intent (WhatsApp, etc.)
+                val sendIntent = android.content.Intent().apply {
                     action = android.content.Intent.ACTION_SEND
-                    putExtra(android.content.Intent.EXTRA_TEXT, "היי! בוא להצטרף לרשימת הקניות שלי '${uiState.shoppingList?.name}' באפליקציה. (כאן יהיה קישור להורדה)")
+                    putExtra(android.content.Intent.EXTRA_TEXT, "היי! בוא להצטרף לרשימת הקניות שלי '${uiState.shoppingList?.name}' באפליקציה.")
                     type = "text/plain"
                 }
                 val shareIntent = android.content.Intent.createChooser(sendIntent, "הזמן חבר באמצעות...")
@@ -527,8 +599,10 @@ fun ProductItem(
 @Composable
 fun AddProductDialog(
     categories: List<String>,
+    suggestions: List<CatalogItem>,
+    onSearch: (String) -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (String, Int, String, String, String, Double?) -> Unit // Added price
+    onConfirm: (String, Int, String, String, String, Double?) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var quantity by remember { mutableStateOf("1") }
@@ -541,6 +615,23 @@ fun AddProductDialog(
     // Dropdown states
     var unitExpanded by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
+    var suggestionsExpanded by remember { mutableStateOf(false) }
+
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (spokenText != null) {
+                name = spokenText
+                onSearch(spokenText)
+            }
+        }
+    }
+
+    LaunchedEffect(suggestions) {
+        suggestionsExpanded = name.length >= 2 && suggestions.isNotEmpty()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -552,14 +643,66 @@ fun AddProductDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("שם המוצר") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
+                // Name Input with Autocomplete & Voice
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { 
+                            name = it
+                            onSearch(it)
+                        },
+                        label = { Text("שם המוצר") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        trailingIcon = {
+                             IconButton(onClick = {
+                                val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "he-IL")
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "דבר עכשיו...")
+                                }
+                                try {
+                                    speechLauncher.launch(intent)
+                                } catch (e: Exception) {
+                                    // Handle case where speech recognition is not available
+                                }
+                            }) {
+                                Icon(Icons.Default.Mic, contentDescription = "דיבור")
+                            }
+                        }
+                    )
+                    
+                    DropdownMenu(
+                        expanded = suggestionsExpanded,
+                        onDismissRequest = { suggestionsExpanded = false },
+                        properties = androidx.compose.ui.window.PopupProperties(focusable = false),
+                        modifier = Modifier.fillMaxWidth(0.8f) 
+                    ) {
+                        suggestions.forEach { item ->
+                            DropdownMenuItem(
+                                text = { 
+                                    Column {
+                                        Text(item.name, fontWeight = FontWeight.Bold)
+                                        if (item.estimatedPrice != null) {
+                                            Text("מחיר משוער: ₪${item.estimatedPrice}", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    name = item.name
+                                    category = item.category
+                                    if (item.defaultUnit.isNotEmpty()) unit = item.defaultUnit
+                                    if (item.estimatedPrice != null) {
+                                        price = item.estimatedPrice.toString()
+                                        isPriceExpanded = true
+                                    }
+                                    suggestionsExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(

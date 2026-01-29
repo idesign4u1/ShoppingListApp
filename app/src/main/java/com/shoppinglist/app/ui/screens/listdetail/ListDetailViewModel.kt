@@ -3,13 +3,20 @@ package com.shoppinglist.app.ui.screens.listdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shoppinglist.app.data.model.CatalogItem
 import com.shoppinglist.app.data.model.Product
 import com.shoppinglist.app.data.model.ShoppingList
+import com.shoppinglist.app.data.repository.CatalogRepository
 import com.shoppinglist.app.data.repository.CategoryRepository
+import com.shoppinglist.app.data.repository.GeofenceRepository
 import com.shoppinglist.app.data.repository.InvitationRepository
 import com.shoppinglist.app.data.repository.ProductRepository
 import com.shoppinglist.app.data.repository.ShoppingListRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.annotation.SuppressLint
+import android.content.Context
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +29,8 @@ data class ListDetailUiState(
     val categories: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val catalogSuggestions: List<CatalogItem> = emptyList()
 )
 
 @HiltViewModel
@@ -31,6 +39,9 @@ class ListDetailViewModel @Inject constructor(
     private val shoppingListRepository: ShoppingListRepository,
     private val invitationRepository: InvitationRepository,
     private val categoryRepository: CategoryRepository,
+    private val catalogRepository: CatalogRepository,
+    private val geofenceRepository: GeofenceRepository,
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -176,5 +187,44 @@ class ListDetailViewModel @Inject constructor(
             // Then toggle completion (which sets isCompleted=true)
             productRepository.toggleProductCompletion(updatedProduct)
         }
+    }
+
+    fun searchCatalog(query: String) {
+        viewModelScope.launch {
+            if (query.length >= 2) {
+                val suggestions = catalogRepository.searchCatalog(query)
+                _uiState.value = _uiState.value.copy(catalogSuggestions = suggestions)
+            } else {
+                _uiState.value = _uiState.value.copy(catalogSuggestions = emptyList())
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun enableLocationReminder() {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                geofenceRepository.addGeofence(
+                    id = listId, // Use list ID as geofence ID
+                    lat = location.latitude,
+                    lng = location.longitude
+                )
+                _uiState.value = _uiState.value.copy(message = "תזכורת מיקום הופעלה למיקום הנוכחי")
+            } else {
+                 _uiState.value = _uiState.value.copy(error = "לא ניתן לאתר מיקום (ודא GPS דלוק)")
+            }
+        }.addOnFailureListener {
+            _uiState.value = _uiState.value.copy(error = "שגיאה בקבלת מיקום: ${it.message}")
+        }
+    }
+
+    fun getExpensesByCategory(): Map<String, Double> {
+        return _uiState.value.products
+            .filter { it.isCompleted } // Only count purchased items
+            .groupBy { it.category }
+            .mapValues { (_, products) -> 
+                products.sumOf { (it.price ?: 0.0) * it.quantity } // Calculate total per category
+            }
     }
 }

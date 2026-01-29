@@ -86,6 +86,9 @@ dependencies {
 
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+    
+    // Location
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
